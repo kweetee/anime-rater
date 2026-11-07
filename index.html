@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- Класс "dark" на <html> включает тёмную тему (по умолчанию она включена) -->
+<html lang="ru" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover нужен, чтобы на iPhone нижняя панель не пряталась под системной полосой -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#131110" />
+    <!-- %BASE_URL% Vite подставит сам (например, /anime-rater/) -->
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
+    <!-- Применяем сохранённую тему до отрисовки страницы, чтобы не было белой вспышки -->
+    <script>
+      try {
+        var mode = localStorage.getItem('anime-rater-theme') || 'dark'
+        var dark =
+          mode === 'dark' ||
+          (mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.classList.toggle('dark', dark)
+      } catch (e) {}
+    </script>
+    <title>Anime Rater</title>
+  </head>
+  <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
