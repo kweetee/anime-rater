@@ -84,7 +84,8 @@ export async function importFromShikimori(
 
   onProgress({ stage: 'saving' })
   const now = Date.now()
-  const rows = fresh.map((item, index) => ({
+  // Новые записи без id: его выдаст сама база
+  const rows: Omit<Anime, 'id'>[] = fresh.map((item, index) => ({
     title: item.title,
     image: blobs[index],
     rating: item.rating,
