@@ -5,6 +5,7 @@ import { db } from '../db/db'
 import type { Tag } from '../types'
 import { AnimeCard } from '../components/AnimeCard'
 import { HomeToolbar } from '../components/HomeToolbar'
+import { ShikimoriImport } from '../components/ShikimoriImport'
 import { Spinner } from '../components/Spinner'
 import { EmptyState } from '../components/EmptyState'
 import { filterAnime } from '../lib/filterAnime'
@@ -110,6 +111,9 @@ export function HomePage() {
           + Добавить аниме
         </Link>
       </div>
+
+      {/* Импорт списка «просмотрено» с Шикимори (всегда виден) */}
+      <ShikimoriImport />
 
       {animeList === undefined && <Spinner />}
 
