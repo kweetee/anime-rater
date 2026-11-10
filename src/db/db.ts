@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Anime, Tag, Tier, RatingHint } from '../types'
+import type { Anime, Tag, Tier, RatingHint, Layout } from '../types'
 
 // Тип базы: четыре таблицы с понятными типами
 export const db = new Dexie('anime-rater') as Dexie & {
@@ -7,6 +7,7 @@ export const db = new Dexie('anime-rater') as Dexie & {
   tags: EntityTable<Tag, 'id'>
   tiers: EntityTable<Tier, 'id'>
   ratingHints: EntityTable<RatingHint, 'score'>
+  layouts: EntityTable<Layout, 'id'>
 }
 
 // Описания оценок по умолчанию. Аниме оценивается ЦЕЛИКОМ, по общему ощущению (вайбу),
@@ -50,15 +51,58 @@ db.version(2)
       }),
   )
 
+// Версия 3: у аниме появилось поле kind (тип: TV, OVA, Special...). У старых записей оно null.
+// Список индексов не менялся: по типу фильтруем в коде.
+db.version(3)
+  .stores(SCHEMA)
+  .upgrade((tx) =>
+    tx
+      .table('anime')
+      .toCollection()
+      .modify((anime: Anime) => {
+        if (anime.kind === undefined) anime.kind = null
+      }),
+  )
+
+// Версия 4: новая таблица layouts (сохранённые раскладки тир-листа).
+// Заодно стандартные тиры (S, A, B, C, D) со старыми разноцветными цветами перекрашиваются в серые.
+// Если вы меняли цвет сами, он не трогается.
+const OLD_TIER_COLORS: Record<string, string> = {
+  S: '#ef4444',
+  A: '#f97316',
+  B: '#eab308',
+  C: '#22c55e',
+  D: '#3b82f6',
+}
+const GRAY_TIER_COLORS: Record<string, string> = {
+  S: '#f4f4f4',
+  A: '#cfcfcf',
+  B: '#9a9a9a',
+  C: '#5e5e5e',
+  D: '#2b2b2b',
+}
+db.version(4)
+  .stores({ ...SCHEMA, layouts: '++id, createdAt' })
+  .upgrade((tx) =>
+    tx
+      .table('tiers')
+      .toCollection()
+      .modify((tier: Tier) => {
+        if (OLD_TIER_COLORS[tier.name] === tier.color.toLowerCase()) {
+          tier.color = GRAY_TIER_COLORS[tier.name]
+        }
+      }),
+  )
+
 // Срабатывает один раз при первом создании базы:
-// стандартные тиры и описания для оценок 1–10
+// стандартные тиры (оттенки серого) и описания для оценок 1–10
 db.on('populate', (tx) => {
   tx.table('tiers').bulkAdd([
-    { name: 'S', color: '#ef4444', order: 0 },
-    { name: 'A', color: '#f97316', order: 1 },
-    { name: 'B', color: '#eab308', order: 2 },
-    { name: 'C', color: '#22c55e', order: 3 },
-    { name: 'D', color: '#3b82f6', order: 4 },
+    { name: 'S', color: '#f4f4f4', order: 0 },
+    { name: 'A', color: '#cfcfcf', order: 1 },
+    { name: 'B', color: '#9a9a9a', order: 2 },
+    { name: 'C', color: '#5e5e5e', order: 3 },
+    { name: 'D', color: '#2b2b2b', order: 4 },
   ])
   tx.table('ratingHints').bulkAdd(
     Array.from({ length: 10 }, (_, i) => ({

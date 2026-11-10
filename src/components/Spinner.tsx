@@ -16,7 +16,7 @@ export function Spinner({ label = 'Загрузка…' }: { label?: string }) {
     >
       <div
         aria-hidden="true"
-        className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-500 dark:border-slate-600"
+        className="h-7 w-7 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600 dark:border-slate-700 dark:border-t-indigo-400"
       />
       <p className="text-sm">{label}</p>
       {slow && (

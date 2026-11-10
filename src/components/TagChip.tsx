@@ -1,3 +1,6 @@
+import { CrossIcon } from './Doodles'
+import { CHIP_BASE, CHIP_SELECTED, CHIP_UNSELECTED } from '../lib/formStyles'
+
 interface TagChipProps {
   label: string
   selected?: boolean // метка выбрана
@@ -12,18 +15,14 @@ export function TagChip({
   removable = false,
   onClick,
 }: TagChipProps) {
-  const base =
-    'inline-flex items-center gap-1 rounded-full border px-3 py-1 text-sm transition'
-
   let state: string
   if (removable) {
     state =
-      'border-red-400 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-500 dark:bg-red-950/40 dark:text-red-300'
+      'border-slate-900 bg-transparent text-slate-900 hover:bg-slate-100 dark:border-white dark:text-white dark:hover:bg-slate-800'
   } else if (selected) {
-    state = 'border-indigo-600 bg-indigo-600 text-white'
+    state = CHIP_SELECTED
   } else {
-    state =
-      'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+    state = CHIP_UNSELECTED
   }
 
   return (
@@ -31,10 +30,10 @@ export function TagChip({
       type="button"
       aria-pressed={removable ? undefined : selected}
       onClick={onClick}
-      className={`${base} ${state}`}
+      className={`${CHIP_BASE} ${state}`}
     >
       {label}
-      {removable && <span aria-hidden="true">✕</span>}
+      {removable && <CrossIcon className="h-2.5 w-2.5" />}
     </button>
   )
 }

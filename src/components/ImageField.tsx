@@ -36,7 +36,8 @@ export function ImageField({ value, onChange }: ImageFieldProps) {
       <AnimeImage
         blob={value}
         alt="Предпросмотр картинки"
-        className="h-36 w-24 shrink-0 rounded-lg"
+        label="+"
+        className="h-36 w-24 shrink-0"
       />
 
       <div className="space-y-2">
@@ -67,9 +68,6 @@ export function ImageField({ value, onChange }: ImageFieldProps) {
           )}
         </div>
 
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Картинка сжимается автоматически, оригинал не сохраняется.
-        </p>
         {error && (
           <p role="alert" className="text-sm text-red-600 dark:text-red-400">
             {error}

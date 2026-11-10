@@ -9,8 +9,15 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#131110" />
+    <meta name="theme-color" content="#0b0609" />
     <!-- %BASE_URL% Vite подставит сам (например, /anime-rater/) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Шрифт IBM Plex Mono (моноширинный, с кириллицей) для всего текста. Пиксельный Public Pixel лежит в проекте (src/assets/fonts) и нужен только для логотипа и цифр -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
     <!-- Применяем сохранённую тему до отрисовки страницы, чтобы не было белой вспышки -->
@@ -25,7 +32,7 @@
     </script>
     <title>Anime Rater</title>
   </head>
-  <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+  <body class="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

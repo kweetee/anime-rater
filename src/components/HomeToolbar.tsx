@@ -1,16 +1,19 @@
-import type { Tag } from '../types'
+import type { AnimeKind, Tag } from '../types'
 import { SORT_OPTIONS } from '../lib/filterAnime'
 import type { SortMode } from '../lib/filterAnime'
+import { VIEW_OPTIONS } from '../lib/useViewMode'
+import type { ViewMode } from '../lib/useViewMode'
+import { KIND_LABELS } from '../lib/animeKinds'
 import { TagChip } from './TagChip'
+import { Toggle } from './Toggle'
 import { INPUT_CLASSES } from '../lib/formStyles'
-import {
-  REFERENCE_TOGGLE_OFF_CLASSES,
-  REFERENCE_TOGGLE_ON_CLASSES,
-} from '../lib/styles'
 
 interface HomeToolbarProps {
   query: string
   onQueryChange: (query: string) => void
+  kinds: AnimeKind[] // какие типы есть среди аниме
+  selectedKinds: AnimeKind[]
+  onToggleKind: (kind: AnimeKind) => void
   tags: Tag[]
   selectedTagIds: number[]
   onToggleTag: (id: number) => void
@@ -20,18 +23,23 @@ interface HomeToolbarProps {
   onToggleReferences: () => void
   ratingFilter: number | null // фильтр «оценка = N» (из адреса /?rating=N)
   onClearRating: () => void
+  view: ViewMode
+  onViewChange: (mode: ViewMode) => void
   foundCount: number
   totalCount: number
   hasFilters: boolean // включён ли поиск или фильтр
   onReset: () => void
 }
 
-const CHIP_BASE = 'rounded-full border px-3 py-1 text-sm transition'
+const CAPTION = 'mb-1.5 text-xs text-slate-500 dark:text-slate-400'
 
-// Панель над списком: поиск, сортировка, быстрые фильтры, метки, счётчик
+// Панель над списком: поиск, сортировка, фильтры, вид списка, счётчик
 export function HomeToolbar({
   query,
   onQueryChange,
+  kinds,
+  selectedKinds,
+  onToggleKind,
   tags,
   selectedTagIds,
   onToggleTag,
@@ -41,6 +49,8 @@ export function HomeToolbar({
   onToggleReferences,
   ratingFilter,
   onClearRating,
+  view,
+  onViewChange,
   foundCount,
   totalCount,
   hasFilters,
@@ -71,34 +81,58 @@ export function HomeToolbar({
         </select>
       </div>
 
-      {/* Быстрые фильтры */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          aria-pressed={onlyReferences}
-          className={`${CHIP_BASE} ${
-            onlyReferences
-              ? REFERENCE_TOGGLE_ON_CLASSES
-              : REFERENCE_TOGGLE_OFF_CLASSES
-          }`}
-          onClick={onToggleReferences}
-        >
-          ★ Только эталоны
-        </button>
+      {/* Быстрые фильтры и вид списка */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+        <Toggle label="Только эталоны" checked={onlyReferences} onChange={onToggleReferences} />
         {ratingFilter !== null && (
           <button
             type="button"
             title="Убрать фильтр по оценке"
-            className={`${CHIP_BASE} border-indigo-600 bg-indigo-600 text-white`}
+            className="min-h-10 text-sm underline"
             onClick={onClearRating}
           >
-            Оценка: {ratingFilter} ✕
+            Оценка {ratingFilter}: сбросить
           </button>
         )}
+
+        <div role="group" aria-label="Вид списка" className="ml-auto flex gap-4">
+          {VIEW_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={view === option.value}
+              className={`min-h-10 border-b-2 text-sm ${
+                view === option.value
+                  ? 'border-slate-900 font-semibold text-slate-900 dark:border-white dark:text-white'
+                  : 'border-transparent text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`}
+              onClick={() => onViewChange(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {kinds.length > 0 && (
+        <div>
+          <p className={CAPTION}>Тип</p>
+          <div className="flex flex-wrap gap-2">
+            {kinds.map((kind) => (
+              <TagChip
+                key={kind}
+                label={KIND_LABELS[kind]}
+                selected={selectedKinds.includes(kind)}
+                onClick={() => onToggleKind(kind)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {tags.length > 0 && (
-        <div className="space-y-1">
+        <div>
+          <p className={CAPTION}>Метки</p>
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => (
               <TagChip
@@ -110,14 +144,14 @@ export function HomeToolbar({
             ))}
           </div>
           {selectedTagIds.length > 1 && (
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
               Показаны аниме, у которых есть все выбранные метки.
             </p>
           )}
         </div>
       )}
 
-      <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+      <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
         <span>
           {hasFilters
             ? `Найдено: ${foundCount} из ${totalCount}`
@@ -126,7 +160,7 @@ export function HomeToolbar({
         {hasFilters && (
           <button
             type="button"
-            className="underline hover:text-slate-700 dark:hover:text-slate-200"
+            className="min-h-9 px-1 underline hover:text-slate-900 dark:hover:text-white"
             onClick={onReset}
           >
             Сбросить

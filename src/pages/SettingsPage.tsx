@@ -13,7 +13,12 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { ImportDialog } from '../components/ImportDialog'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { ThemeToggle } from '../components/ThemeToggle'
-import { BUTTON_DANGER_CLASSES, BUTTON_SECONDARY_CLASSES } from '../lib/formStyles'
+import { PageTitle } from '../components/PageTitle'
+import {
+  BUTTON_DANGER_CLASSES,
+  BUTTON_PRIMARY_CLASSES,
+  BUTTON_SECONDARY_CLASSES,
+} from '../lib/formStyles'
 
 interface Message {
   kind: 'error' | 'success'
@@ -112,12 +117,12 @@ export default function SettingsPage() {
   }
 
   const sectionClass =
-    'space-y-3 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900'
+    'frame space-y-3 bg-white p-4 [--fw:3px] dark:bg-slate-900'
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Данные</h1>
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <PageTitle>Данные</PageTitle>
         <p className="text-sm text-slate-500 dark:text-slate-400">
           {counts
             ? `Сейчас в приложении: аниме — ${counts.anime}, меток — ${counts.tags}.`
@@ -132,21 +137,18 @@ export default function SettingsPage() {
       )}
 
       <section className={sectionClass}>
-        <h2 className="text-lg font-semibold">Оформление</h2>
+        <h2 className="text-base font-semibold">Оформление</h2>
         <ThemeToggle />
       </section>
 
       <section className={sectionClass}>
-        <h2 className="text-lg font-semibold">Резервная копия</h2>
+        <h2 className="text-base font-semibold">Резервная копия</h2>
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Данные хранятся только в этом браузере на этом устройстве. Телефон и компьютер не
-          синхронизируются сами: чтобы перенести данные, сохраните файл здесь и загрузите его на
-          другом устройстве через «Импорт». Делайте копию время от времени: если очистить данные
-          браузера, всё пропадёт.
+          Данные лежат только в этом браузере. Сохраните файл, чтобы не потерять их или перенести.
         </p>
         <button
           type="button"
-          className="min-h-11 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          className={BUTTON_PRIMARY_CLASSES}
           disabled={busy}
           onClick={handleExport}
         >
@@ -155,10 +157,9 @@ export default function SettingsPage() {
       </section>
 
       <section className={sectionClass}>
-        <h2 className="text-lg font-semibold">Импорт</h2>
+        <h2 className="text-base font-semibold">Импорт</h2>
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Выберите JSON-файл, сохранённый этим приложением. Перед импортом вы выберете: добавить к
-          текущим данным или заменить всё.
+          Выберите JSON-файл, сохранённый этим приложением.
         </p>
         <input
           ref={fileInput}
@@ -178,10 +179,9 @@ export default function SettingsPage() {
       </section>
 
       <section className={sectionClass}>
-        <h2 className="text-lg font-semibold">Очистка</h2>
+        <h2 className="text-base font-semibold">Очистка</h2>
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Удаляет все аниме, метки и ваши описания оценок. Тиры и описания вернутся к стандартным.
-          Сначала сохраните резервную копию.
+          Удалит все аниме, метки и описания. Сначала сохраните резервную копию.
         </p>
         <button
           type="button"

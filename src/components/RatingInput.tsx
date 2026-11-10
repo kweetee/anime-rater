@@ -1,4 +1,4 @@
-import { BUTTON_SECONDARY_CLASSES } from '../lib/formStyles'
+import { BUTTON_SECONDARY_CLASSES, CHIP_SELECTED, CHIP_UNSELECTED } from '../lib/formStyles'
 
 const SCORES = Array.from({ length: 10 }, (_, i) => i + 1)
 
@@ -27,10 +27,8 @@ export function RatingInput({ value, onChange }: RatingInputProps) {
               type="button"
               role="radio"
               aria-checked={selected}
-              className={`h-11 rounded-md border-2 font-mono text-lg font-bold transition ${
-                selected
-                  ? 'border-indigo-600 bg-indigo-600 text-white'
-                  : 'border-slate-300 bg-white text-slate-700 hover:border-indigo-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200'
+              className={`h-11 border text-base transition-colors ${
+                selected ? CHIP_SELECTED : CHIP_UNSELECTED
               }`}
               onClick={() => onChange(score)}
             >

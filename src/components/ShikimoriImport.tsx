@@ -3,7 +3,8 @@ import type { FormEvent } from 'react'
 import { importFromShikimori } from '../db/shikimoriImport'
 import type { ImportProgress, ShikimoriImportResult } from '../db/shikimoriImport'
 import { HAS_IMAGE_PROXY, ShikimoriError } from '../lib/shikimori'
-import { INPUT_CLASSES } from '../lib/formStyles'
+import { BUTTON_PRIMARY_CLASSES, INPUT_CLASSES } from '../lib/formStyles'
+import { Toggle } from './Toggle'
 
 // Постоянный блок на главной: ввод ника на Шикимори и импорт списка «просмотрено».
 
@@ -31,6 +32,9 @@ function progressText(progress: ImportProgress): string {
   if (progress.stage === 'covers') {
     return `Загружаю обложки: ${progress.done} из ${progress.total}`
   }
+  if (progress.stage === 'genres') {
+    return `Загружаю тип и жанры: ${progress.done} из ${progress.total}`
+  }
   return 'Сохраняю в базу…'
 }
 
@@ -43,6 +47,9 @@ function resultLines(result: ShikimoriImportResult): string[] {
   lines.push(
     `Готово. Добавлено: ${result.added}, пропущено (уже есть в списке): ${result.skipped}.`,
   )
+  if (result.updated > 0) {
+    lines.push(`Тип и жанры дописаны у ${result.updated} аниме, которые уже были в списке.`)
+  }
   if (result.withoutRating > 0) {
     lines.push(`Без оценки: ${result.withoutRating}. Поставьте им оценки вручную.`)
   }
@@ -52,16 +59,24 @@ function resultLines(result: ShikimoriImportResult): string[] {
   if (result.coversStopped) {
     lines.push('Обложки остановлены: посредник не отвечает. Остальные аниме добавлены без обложек.')
   }
+  if (result.detailsStopped) {
+    lines.push('Жанры остановлены: Шикимори не отвечает. Запустите импорт позже, недостающее дозагрузится.')
+  } else if (result.detailErrors > 0) {
+    lines.push(`Жанры не загрузились у ${result.detailErrors} аниме. Запустите импорт ещё раз.`)
+  }
   return lines
 }
 
 export function ShikimoriImport() {
   const [nick, setNick] = useState(loadNick)
   const [withCovers, setWithCovers] = useState(HAS_IMAGE_PROXY)
+  const [withGenres, setWithGenres] = useState(true)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<ImportProgress | null>(null)
   const [result, setResult] = useState<ShikimoriImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  const coversOn = withCovers && HAS_IMAGE_PROXY
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -73,7 +88,7 @@ export function ShikimoriImport() {
     setError(null)
     setResult(null)
     try {
-      const importResult = await importFromShikimori(cleanNick, withCovers, setProgress)
+      const importResult = await importFromShikimori(cleanNick, coversOn, withGenres, setProgress)
       setResult(importResult)
     } catch (err) {
       setError(
@@ -87,85 +102,77 @@ export function ShikimoriImport() {
     }
   }
 
-  const coversPercent =
-    progress?.stage === 'covers' && progress.total > 0
+  const percent =
+    progress && (progress.stage === 'covers' || progress.stage === 'genres') && progress.total > 0
       ? Math.round((progress.done / progress.total) * 100)
       : 0
 
   return (
     <section
       aria-label="Импорт из Шикимори"
-      className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+      className="hub-block dark space-y-3 px-7 py-5"
     >
-      <h2 className="font-semibold text-slate-900 dark:text-slate-100">Импорт из Шикимори</h2>
-      <p className="text-sm text-slate-500 dark:text-slate-400">
-        Добавит аниме со статусом «просмотрено» и вашими оценками. Названия, которые уже есть в
-        списке, пропускаются. Список на Шикимори должен быть открыт для всех.
-      </p>
+      <h2 className="text-base font-semibold text-white">Импорт из Шикимори</h2>
 
-      <form className="flex flex-col gap-2 sm:flex-row" onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={nick}
-          placeholder="Ник на Шикимори"
-          aria-label="Ник на Шикимори"
-          autoComplete="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          disabled={busy}
-          className={INPUT_CLASSES}
-          onChange={(event) => setNick(event.target.value)}
-        />
-        <button
-          type="submit"
-          disabled={busy || nick.trim() === ''}
-          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
-          {busy ? 'Импортирую…' : 'Импортировать'}
-        </button>
+      <form className="space-y-2" onSubmit={handleSubmit}>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            value={nick}
+            placeholder="Ник на Шикимори"
+            aria-label="Ник на Шикимори"
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            disabled={busy}
+            className={INPUT_CLASSES}
+            onChange={(event) => setNick(event.target.value)}
+          />
+          <button
+            type="submit"
+            disabled={busy || nick.trim() === ''}
+            className={`${BUTTON_PRIMARY_CLASSES} shrink-0`}
+          >
+            {busy ? 'Импортирую…' : 'Импортировать'}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-x-5 text-slate-200">
+          <Toggle
+            label="Обложки"
+            checked={coversOn}
+            disabled={busy || !HAS_IMAGE_PROXY}
+            title={HAS_IMAGE_PROXY ? undefined : 'Не подключён посредник (IMAGE_PROXY_URL в src/lib/shikimori.ts)'}
+            onChange={() => setWithCovers((value) => !value)}
+          />
+          <Toggle
+            label="Жанры"
+            checked={withGenres}
+            disabled={busy}
+            onChange={() => setWithGenres((value) => !value)}
+          />
+        </div>
       </form>
-
-      <label className="flex min-h-11 items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-        <input
-          type="checkbox"
-          checked={withCovers && HAS_IMAGE_PROXY}
-          disabled={busy || !HAS_IMAGE_PROXY}
-          onChange={(event) => setWithCovers(event.target.checked)}
-        />
-        Загружать обложки (долго: около секунды на 3 аниме)
-      </label>
-      {!HAS_IMAGE_PROXY && (
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Обложки выключены: не подключён посредник Cloudflare. Адрес вписывается в
-          src/lib/shikimori.ts (IMAGE_PROXY_URL).
-        </p>
-      )}
 
       {busy && progress && (
         <div className="space-y-1" role="status">
-          <p className="text-sm text-slate-700 dark:text-slate-300">{progressText(progress)}</p>
-          {progress.stage === 'covers' && (
-            <div className="h-2 rounded bg-slate-200 dark:bg-slate-700">
-              <div
-                className="h-2 rounded bg-indigo-600"
-                style={{ width: `${coversPercent}%` }}
-              />
+          <p className="text-sm text-slate-200">{progressText(progress)}</p>
+          {(progress.stage === 'covers' || progress.stage === 'genres') && (
+            <div className="h-1.5 bg-slate-700">
+              <div className="h-1.5 bg-white" style={{ width: `${percent}%` }} />
             </div>
           )}
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Не закрывайте вкладку, пока идёт импорт.
-          </p>
+          <p className="text-xs text-slate-400">Не закрывайте вкладку, пока идёт импорт.</p>
         </div>
       )}
 
       {error && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-400">
           {error}
         </p>
       )}
 
       {result && (
-        <div role="status" className="space-y-1 text-sm text-slate-700 dark:text-slate-300">
+        <div role="status" className="space-y-1 text-sm text-slate-200">
           {resultLines(result).map((line) => (
             <p key={line}>{line}</p>
           ))}

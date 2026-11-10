@@ -1,10 +1,13 @@
 import { db, DEFAULT_HINTS } from './db'
-import type { Anime, RatingHint, Tag, Tier } from '../types'
+import type { Anime, Layout, RatingHint, Tag, Tier } from '../types'
+import { parseKind } from '../lib/animeKinds'
 
-// Экспорт, импорт и очистка данных. Схему базы не меняем: работаем с теми же таблицами.
+// Экспорт, импорт и очистка данных.
+// Версия файла 2: у аниме появилось поле kind (тип). Версия 3: добавлены сохранённые раскладки тир-листа.
+// Файлы старых версий читаются: kind = null, раскладок нет.
 
 const BACKUP_APP_ID = 'anime-rater'
-const BACKUP_VERSION = 1
+const BACKUP_VERSION = 3
 
 // «Заменить всё» стирает текущие данные, «Добавить» дописывает к существующим
 export type ImportMode = 'replace' | 'merge'
@@ -23,6 +26,7 @@ export interface BackupFile {
   tags: Tag[]
   tiers: Tier[]
   ratingHints: RatingHint[]
+  layouts: Layout[]
 }
 
 export interface ImportResult {
@@ -32,11 +36,11 @@ export interface ImportResult {
 
 // Стандартные тиры (такие же, как при первом создании базы в db.ts)
 const DEFAULT_TIERS: Omit<Tier, 'id'>[] = [
-  { name: 'S', color: '#ef4444', order: 0 },
-  { name: 'A', color: '#f97316', order: 1 },
-  { name: 'B', color: '#eab308', order: 2 },
-  { name: 'C', color: '#22c55e', order: 3 },
-  { name: 'D', color: '#3b82f6', order: 4 },
+  { name: 'S', color: '#f4f4f4', order: 0 },
+  { name: 'A', color: '#cfcfcf', order: 1 },
+  { name: 'B', color: '#9a9a9a', order: 2 },
+  { name: 'C', color: '#5e5e5e', order: 3 },
+  { name: 'D', color: '#2b2b2b', order: 4 },
 ]
 
 // ---------- Картинки: Blob <-> base64 ----------
@@ -64,11 +68,12 @@ async function dataUrlToBlob(value: string | null): Promise<Blob | null> {
 // ---------- Экспорт ----------
 
 export async function createBackup(): Promise<BackupFile> {
-  const [anime, tags, tiers, ratingHints] = await Promise.all([
+  const [anime, tags, tiers, ratingHints, layouts] = await Promise.all([
     db.anime.toArray(),
     db.tags.toArray(),
     db.tiers.toArray(),
     db.ratingHints.toArray(),
+    db.layouts.toArray(),
   ])
   const animeOut = await Promise.all(
     anime.map(async (item): Promise<BackupAnime> => ({
@@ -84,6 +89,7 @@ export async function createBackup(): Promise<BackupFile> {
     tags,
     tiers,
     ratingHints,
+    layouts,
   }
 }
 
@@ -126,7 +132,7 @@ export function parseBackup(text: string): BackupFile {
     tiers.push({
       id: item.id,
       name: item.name,
-      color: typeof item.color === 'string' ? item.color : '#7d7260',
+      color: typeof item.color === 'string' ? item.color : '#8a8a8a',
       order: typeof item.order === 'number' ? item.order : tiers.length,
     })
   }
@@ -138,6 +144,32 @@ export function parseBackup(text: string): BackupFile {
     ratingHints.push({
       score: item.score,
       description: typeof item.description === 'string' ? item.description : '',
+    })
+  }
+
+  const layouts: Layout[] = []
+  for (const item of asArray(raw.layouts)) {
+    if (!isRecord(item) || typeof item.id !== 'number') continue
+    if (typeof item.name !== 'string' || item.name.trim() === '') continue
+    const layoutTiers: { name: string; color: string }[] = []
+    for (const tier of asArray(item.tiers)) {
+      if (!isRecord(tier) || typeof tier.name !== 'string') continue
+      layoutTiers.push({ name: tier.name, color: typeof tier.color === 'string' ? tier.color : '#8a8a8a' })
+    }
+    const assignments: [number, number][] = []
+    for (const pair of asArray(item.assignments)) {
+      if (!Array.isArray(pair) || pair.length !== 2) continue
+      const [animeId, tierIndex] = pair
+      if (typeof animeId !== 'number' || typeof tierIndex !== 'number') continue
+      if (!Number.isInteger(tierIndex) || tierIndex < 0 || tierIndex >= layoutTiers.length) continue
+      assignments.push([animeId, tierIndex])
+    }
+    layouts.push({
+      id: item.id,
+      name: item.name.trim(),
+      createdAt: typeof item.createdAt === 'number' ? item.createdAt : Date.now(),
+      tiers: layoutTiers,
+      assignments,
     })
   }
 
@@ -154,6 +186,7 @@ export function parseBackup(text: string): BackupFile {
       title: item.title.trim(),
       image: typeof item.image === 'string' ? item.image : null,
       rating,
+      kind: parseKind(item.kind), // в файлах версии 1 поля нет: будет null
       comment: typeof item.comment === 'string' ? item.comment : '',
       // Ссылки на несуществующие метки и тиры убираем, чтобы не было «битых» связей
       tagIds: asArray(item.tagIds).filter(
@@ -167,7 +200,7 @@ export function parseBackup(text: string): BackupFile {
     })
   }
 
-  return { app: BACKUP_APP_ID, version: BACKUP_VERSION, exportedAt: Number(raw.exportedAt) || now, anime, tags, tiers, ratingHints }
+  return { app: BACKUP_APP_ID, version: BACKUP_VERSION, exportedAt: Number(raw.exportedAt) || now, anime, tags, tiers, ratingHints, layouts }
 }
 
 // ---------- Импорт ----------
@@ -188,16 +221,18 @@ export async function importBackup(backup: BackupFile, mode: ImportMode): Promis
   const blobs = await Promise.all(backup.anime.map((item) => dataUrlToBlob(item.image)))
 
   if (mode === 'replace') {
-    await db.transaction('rw', db.anime, db.tags, db.tiers, db.ratingHints, async () => {
+    await db.transaction('rw', db.anime, db.tags, db.tiers, db.ratingHints, db.layouts, async () => {
       await db.anime.clear()
       await db.tags.clear()
       await db.tiers.clear()
       await db.ratingHints.clear()
+      await db.layouts.clear()
       // id сохраняем как в файле: так связи аниме → метки и тиры остаются верными
       await db.tags.bulkAdd(backup.tags)
       if (backup.tiers.length > 0) await db.tiers.bulkAdd(backup.tiers)
       else await db.tiers.bulkAdd(DEFAULT_TIERS as Tier[])
       await db.ratingHints.bulkAdd(fillHints(backup.ratingHints))
+      if (backup.layouts.length > 0) await db.layouts.bulkAdd(backup.layouts)
       await db.anime.bulkAdd(backup.anime.map((item, i): Anime => ({ ...item, image: blobs[i] })))
     })
     return { added: backup.anime.length, skipped: 0 }
@@ -206,7 +241,7 @@ export async function importBackup(backup: BackupFile, mode: ImportMode): Promis
   // Режим «добавить»: ничего не стираем, id в файле и в базе не совпадают, поэтому пересчитываем связи
   let added = 0
   let skipped = 0
-  await db.transaction('rw', db.anime, db.tags, db.tiers, db.ratingHints, async () => {
+  await db.transaction('rw', db.anime, db.tags, db.tiers, db.ratingHints, db.layouts, async () => {
     // Метки: совпавшие по названию объединяем, остальные создаём
     const existingTags = await db.tags.toArray()
     const tagIdMap = new Map<number, number>() // id в файле → id в базе
@@ -252,25 +287,28 @@ export async function importBackup(backup: BackupFile, mode: ImportMode): Promis
     }
 
     // Аниме: дубликаты по названию пропускаем
-    const knownTitles = new Set(
-      (await db.anime.toArray()).map((item) => item.title.trim().toLowerCase()),
+    const titleToId = new Map<string, number>(
+      (await db.anime.toArray()).map((item) => [item.title.trim().toLowerCase(), item.id]),
     )
+    const animeIdMap = new Map<number, number>() // id в файле → id в базе (нужно для раскладок)
     for (const [i, item] of backup.anime.entries()) {
       const key = item.title.trim().toLowerCase()
-      if (knownTitles.has(key)) {
+      const knownId = titleToId.get(key)
+      if (knownId !== undefined) {
+        animeIdMap.set(item.id, knownId)
         skipped += 1
         continue
       }
-      knownTitles.add(key)
       const tagIds = new Set<number>()
       for (const oldId of item.tagIds) {
         const newId = tagIdMap.get(oldId)
         if (newId !== undefined) tagIds.add(newId)
       }
-      await db.anime.add({
+      const newAnimeId = await db.anime.add({
         title: item.title,
         image: blobs[i],
         rating: item.rating,
+        kind: item.kind,
         comment: item.comment,
         tagIds: Array.from(tagIds),
         isReference: item.isReference,
@@ -278,7 +316,28 @@ export async function importBackup(backup: BackupFile, mode: ImportMode): Promis
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
       } as Anime)
+      titleToId.set(key, newAnimeId)
+      animeIdMap.set(item.id, newAnimeId)
       added += 1
+    }
+
+    // Раскладки: с тем же названием пропускаем, в остальных пересчитываем id аниме
+    const layoutNames = new Set((await db.layouts.toArray()).map((item) => item.name.trim().toLowerCase()))
+    for (const layout of backup.layouts) {
+      const key = layout.name.trim().toLowerCase()
+      if (layoutNames.has(key)) continue
+      layoutNames.add(key)
+      const assignments: [number, number][] = []
+      for (const [oldId, tierIndex] of layout.assignments) {
+        const newId = animeIdMap.get(oldId)
+        if (newId !== undefined) assignments.push([newId, tierIndex])
+      }
+      await db.layouts.add({
+        name: layout.name,
+        createdAt: layout.createdAt,
+        tiers: layout.tiers,
+        assignments,
+      } as Layout)
     }
   })
   return { added, skipped }
@@ -286,13 +345,14 @@ export async function importBackup(backup: BackupFile, mode: ImportMode): Promis
 
 // ---------- Очистка ----------
 
-// Стирает всё и возвращает стартовые тиры и описания оценок (как у новой базы)
+// Стирает всё (и сохранённые раскладки) и возвращает стартовые тиры и описания оценок (как у новой базы)
 export async function clearAllData(): Promise<void> {
-  await db.transaction('rw', db.anime, db.tags, db.tiers, db.ratingHints, async () => {
+  await db.transaction('rw', db.anime, db.tags, db.tiers, db.ratingHints, db.layouts, async () => {
     await db.anime.clear()
     await db.tags.clear()
     await db.tiers.clear()
     await db.ratingHints.clear()
+    await db.layouts.clear()
     await db.tiers.bulkAdd(DEFAULT_TIERS as Tier[])
     await db.ratingHints.bulkAdd(fillHints([]))
   })

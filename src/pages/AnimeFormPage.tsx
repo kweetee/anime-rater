@@ -4,13 +4,15 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { deleteAnime, saveAnime } from '../db/actions'
-import type { Anime } from '../types'
+import type { Anime, AnimeKind } from '../types'
+import { KIND_LABELS, KIND_ORDER, parseKind } from '../lib/animeKinds'
 import { ImageField } from '../components/ImageField'
 import { RatingInput } from '../components/RatingInput'
 import { TagPicker } from '../components/TagPicker'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { ReferenceBadge } from '../components/ReferenceBadge'
-import { cardStateClasses } from '../lib/styles'
+import { Toggle } from '../components/Toggle'
+import { StarIcon } from '../components/Doodles'
+import { PageTitle } from '../components/PageTitle'
 import {
   BUTTON_DANGER_CLASSES,
   BUTTON_PRIMARY_CLASSES,
@@ -32,6 +34,7 @@ function AnimeForm({ initial }: { initial: Anime | null }) {
   const [comment, setComment] = useState(initial?.comment ?? '')
   const [tagIds, setTagIds] = useState<number[]>(initial?.tagIds ?? [])
   const [isReference, setIsReference] = useState(initial?.isReference ?? false)
+  const [kind, setKind] = useState<AnimeKind | null>(initial?.kind ?? null)
 
   const [titleError, setTitleError] = useState('')
   const [referenceError, setReferenceError] = useState('')
@@ -80,6 +83,7 @@ function AnimeForm({ initial }: { initial: Anime | null }) {
         comment: comment.trim(),
         tagIds: validTagIds,
         isReference,
+        kind,
         tierId: initial?.tierId ?? null, // тир не трогаем
       })
       navigate('/')
@@ -102,9 +106,7 @@ function AnimeForm({ initial }: { initial: Anime | null }) {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto max-w-xl space-y-5" noValidate>
-      <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-        {initial ? 'Редактирование' : 'Новое аниме'}
-      </h1>
+      <PageTitle>{initial ? 'Редактирование' : 'Новое аниме'}</PageTitle>
 
       <div>
         <label htmlFor="anime-title" className={LABEL_CLASSES}>
@@ -131,6 +133,25 @@ function AnimeForm({ initial }: { initial: Anime | null }) {
       </div>
 
       <div>
+        <label htmlFor="anime-kind" className={LABEL_CLASSES}>
+          Тип
+        </label>
+        <select
+          id="anime-kind"
+          value={kind ?? ''}
+          className={INPUT_CLASSES}
+          onChange={(event) => setKind(parseKind(event.target.value))}
+        >
+          <option value="">Не указан</option>
+          {KIND_ORDER.map((item) => (
+            <option key={item} value={item}>
+              {KIND_LABELS[item]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
         <span className={LABEL_CLASSES}>Картинка</span>
         <ImageField value={image} onChange={setImage} />
       </div>
@@ -140,30 +161,19 @@ function AnimeForm({ initial }: { initial: Anime | null }) {
         <RatingInput value={rating} onChange={setRating} />
       </div>
 
-      {/* Переключатель эталона: рамка подсвечивается общим стилем эталона */}
+      {/* Переключатель эталона */}
       <div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={isReference}
-          onClick={() => {
-            setIsReference((value) => !value)
-            setReferenceError('')
-          }}
-          className={`flex w-full items-center justify-between gap-3 rounded-xl border-2 p-3 text-left text-slate-900 dark:text-slate-100 ${cardStateClasses(isReference)}`}
-        >
-          <span className="space-y-1">
-            <span className="block font-medium">Эталон</span>
-            <span className="block text-sm text-slate-600 dark:text-slate-400">
-              Я уверен в этой оценке и могу сравнивать с ней другие аниме.
-            </span>
-          </span>
-          {isReference ? (
-            <ReferenceBadge />
-          ) : (
-            <span className="shrink-0 text-sm text-slate-500">Выкл.</span>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <Toggle
+            label="Эталон"
+            checked={isReference}
+            onChange={() => {
+              setIsReference((value) => !value)
+              setReferenceError('')
+            }}
+          />
+          {isReference && <StarIcon className="h-4 w-4" />}
+        </div>
         {referenceError && (
           <p role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">
             {referenceError}

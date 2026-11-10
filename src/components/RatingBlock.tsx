@@ -70,14 +70,14 @@ export function RatingBlock({
   const defaultText = DEFAULT_HINTS[score] ?? ''
 
   return (
-    <section className="space-y-3 rounded-xl border-2 border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+    <section className="frame space-y-3 bg-white p-4 [--fw:3px] dark:bg-slate-900">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-mono text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+        <h2 className="text-3xl font-bold leading-none text-indigo-700 dark:text-indigo-300">
           {score}
         </h2>
         <span className="text-xs text-slate-500 dark:text-slate-400">
           {status === 'saving' && 'Сохраняю…'}
-          {status === 'saved' && 'Сохранено ✓'}
+          {status === 'saved' && 'Сохранено'}
         </span>
       </div>
 
@@ -103,12 +103,12 @@ export function RatingBlock({
       </div>
 
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+        <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">
           Мои эталоны ({references.length})
         </h3>
         {references.length === 0 ? (
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Эталонов с этой оценкой пока нет. Отметьте «Эталон» в форме аниме.
+            Эталонов пока нет.
           </p>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">

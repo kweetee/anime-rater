@@ -1,4 +1,4 @@
-import type { Anime } from '../types'
+import type { Anime, AnimeKind } from '../types'
 
 // Варианты сортировки: поле и направление в одном значении
 export type SortMode =
@@ -21,6 +21,7 @@ export const SORT_OPTIONS: { value: SortMode; label: string }[] = [
 export interface FilterOptions {
   query: string // поиск по названию и комментарию
   tagIds: number[] // выбранные метки (режим «И»: нужны все)
+  kinds?: AnimeKind[] // выбранные типы (режим «ИЛИ»: подходит любой из них)
   sortMode: SortMode
   onlyReferences?: boolean // показывать только эталоны
   rating?: number | null // показывать только аниме с ровно такой оценкой
@@ -51,6 +52,10 @@ export function filterAnime(list: Anime[], options: FilterOptions): Anime[] {
       anime.rating !== options.rating
     ) {
       return false
+    }
+    if (options.kinds && options.kinds.length > 0) {
+      const kind = anime.kind ?? null
+      if (kind === null || !options.kinds.includes(kind)) return false
     }
     if (query) {
       const inTitle = anime.title.toLowerCase().includes(query)

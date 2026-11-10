@@ -1,4 +1,6 @@
 import { compressImage } from './compressImage'
+import { parseKind } from './animeKinds'
+import type { AnimeKind } from '../types'
 
 // Работа с Шикимори: загрузка списка просмотренного и обложек.
 
@@ -18,6 +20,7 @@ export interface ShikimoriAnime {
   title: string // русское название, а если его нет — английское
   rating: number | null // целое 1–10 или null (на Шикимори 0 = без оценки)
   imagePath: string | null // путь вида /system/animes/original/123.jpg
+  kind: AnimeKind | null // тип: tv, ova, special... (null, если Шикимори не прислал)
 }
 
 // Ошибка с понятным текстом для пользователя
@@ -26,7 +29,7 @@ export class ShikimoriError extends Error {}
 const PAGE_LIMIT = 500
 const MAX_PAGES = 20
 
-function sleep(ms: number): Promise<void> {
+export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
@@ -57,7 +60,7 @@ function parseRate(raw: unknown): ShikimoriAnime | null {
     if (path.startsWith('/system/animes/')) imagePath = path
   }
 
-  return { shikiId: anime.id, title, rating, imagePath }
+  return { shikiId: anime.id, title, rating, imagePath, kind: parseKind(anime.kind) }
 }
 
 // Загружает весь список «просмотрено» по нику. Список публичный, вход не нужен.
@@ -125,4 +128,51 @@ export async function fetchCover(imagePath: string): Promise<Blob> {
   const blob = await response.blob()
   if (!blob.type.startsWith('image/')) throw new Error('Ответ не похож на картинку')
   return compressImage(new File([blob], 'cover', { type: blob.type }))
+}
+
+// Подробности об одном аниме: тип и жанры. Для жанров нужен отдельный запрос на каждое аниме.
+export interface ShikimoriDetails {
+  kind: AnimeKind | null
+  genres: string[] // названия жанров (русские, а если их нет — английские)
+}
+
+export async function fetchAnimeDetails(shikiId: number): Promise<ShikimoriDetails> {
+  const url = `${SHIKIMORI_SITE}/api/animes/${shikiId}`
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let response: Response
+    try {
+      response = await fetch(url)
+    } catch {
+      throw new ShikimoriError('Не удалось связаться с Шикимори. Проверьте интернет или VPN.')
+    }
+    // Слишком частые запросы: один раз ждём и повторяем
+    if (response.status === 429 && attempt === 0) {
+      await sleep(5000)
+      continue
+    }
+    if (!response.ok) {
+      throw new ShikimoriError(`Шикимори ответил ошибкой ${response.status}.`)
+    }
+
+    let data: unknown
+    try {
+      data = await response.json()
+    } catch {
+      throw new ShikimoriError('Шикимори вернул непонятный ответ.')
+    }
+    if (!isRecord(data)) throw new ShikimoriError('Шикимори вернул непонятный ответ.')
+
+    const genres: string[] = []
+    if (Array.isArray(data.genres)) {
+      for (const genre of data.genres) {
+        if (!isRecord(genre)) continue
+        const russian = typeof genre.russian === 'string' ? genre.russian.trim() : ''
+        const name = typeof genre.name === 'string' ? genre.name.trim() : ''
+        const label = russian || name
+        if (label && !genres.includes(label)) genres.push(label)
+      }
+    }
+    return { kind: parseKind(data.kind), genres }
+  }
+  throw new ShikimoriError('Шикимори просит делать запросы реже. Подождите минуту и повторите.')
 }

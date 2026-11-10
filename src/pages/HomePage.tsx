@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import type { Tag } from '../types'
+import type { AnimeKind, Tag } from '../types'
 import { AnimeCard } from '../components/AnimeCard'
 import { HomeToolbar } from '../components/HomeToolbar'
 import { ShikimoriImport } from '../components/ShikimoriImport'
@@ -10,7 +10,10 @@ import { Spinner } from '../components/Spinner'
 import { EmptyState } from '../components/EmptyState'
 import { filterAnime } from '../lib/filterAnime'
 import type { SortMode } from '../lib/filterAnime'
-import { BUTTON_SECONDARY_CLASSES } from '../lib/formStyles'
+import { PageTitle } from '../components/PageTitle'
+import { KIND_ORDER } from '../lib/animeKinds'
+import { useViewMode } from '../lib/useViewMode'
+import { BUTTON_PRIMARY_CLASSES, BUTTON_SECONDARY_CLASSES } from '../lib/formStyles'
 
 // Главная страница: список аниме с поиском, фильтрами и сортировкой.
 export function HomePage() {
@@ -18,6 +21,8 @@ export function HomePage() {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
   const [sortMode, setSortMode] = useState<SortMode>('date-desc')
   const [onlyReferences, setOnlyReferences] = useState(false)
+  const [selectedKinds, setSelectedKinds] = useState<AnimeKind[]>([])
+  const [view, setView] = useViewMode()
 
   // Фильтр по оценке хранится в адресе: /?rating=7 (работает кнопка «Назад»)
   const [searchParams, setSearchParams] = useSearchParams()
@@ -45,6 +50,15 @@ export function HomePage() {
     return map
   }, [tags])
 
+  // Какие типы есть среди аниме (в фильтре показываем только их)
+  const availableKinds = useMemo(() => {
+    const present = new Set<AnimeKind>()
+    for (const anime of animeList ?? []) {
+      if (anime.kind) present.add(anime.kind)
+    }
+    return KIND_ORDER.filter((kind) => present.has(kind))
+  }, [animeList])
+
   // Выбранные метки без удалённых (если метку удалили в форме)
   const activeTagIds = useMemo(
     () => selectedTagIds.filter((id) => tagMap.has(id)),
@@ -56,16 +70,18 @@ export function HomePage() {
       filterAnime(animeList ?? [], {
         query,
         tagIds: activeTagIds,
+        kinds: selectedKinds,
         sortMode,
         onlyReferences,
         rating: ratingFilter,
       }),
-    [animeList, query, activeTagIds, sortMode, onlyReferences, ratingFilter],
+    [animeList, query, activeTagIds, selectedKinds, sortMode, onlyReferences, ratingFilter],
   )
 
   const hasFilters =
     query.trim() !== '' ||
     activeTagIds.length > 0 ||
+    selectedKinds.length > 0 ||
     onlyReferences ||
     ratingFilter !== null
 
@@ -74,6 +90,12 @@ export function HomePage() {
       current.includes(id)
         ? current.filter((tagId) => tagId !== id)
         : [...current, id],
+    )
+  }
+
+  function toggleKind(kind: AnimeKind) {
+    setSelectedKinds((current) =>
+      current.includes(kind) ? current.filter((item) => item !== kind) : [...current, kind],
     )
   }
 
@@ -92,6 +114,7 @@ export function HomePage() {
   function resetFilters() {
     setQuery('')
     setSelectedTagIds([])
+    setSelectedKinds([])
     setOnlyReferences(false)
     clearRating()
   }
@@ -99,18 +122,19 @@ export function HomePage() {
   const totalCount = animeList?.length ?? 0
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-          Моё аниме
-        </h1>
-        <Link
-          to="/anime/new"
-          className="inline-flex min-h-11 items-center rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700"
-        >
-          + Добавить аниме
-        </Link>
-      </div>
+    <div className="space-y-5">
+      <PageTitle
+        actions={
+          <Link
+            to="/anime/new"
+            className={`${BUTTON_PRIMARY_CLASSES} inline-flex items-center`}
+          >
+            + Добавить аниме
+          </Link>
+        }
+      >
+        Моё аниме
+      </PageTitle>
 
       {/* Импорт списка «просмотрено» с Шикимори (всегда виден) */}
       <ShikimoriImport />
@@ -121,6 +145,9 @@ export function HomePage() {
         <HomeToolbar
           query={query}
           onQueryChange={setQuery}
+          kinds={availableKinds}
+          selectedKinds={selectedKinds}
+          onToggleKind={toggleKind}
           tags={sortedTags}
           selectedTagIds={activeTagIds}
           onToggleTag={toggleTag}
@@ -130,6 +157,8 @@ export function HomePage() {
           onToggleReferences={() => setOnlyReferences((value) => !value)}
           ratingFilter={ratingFilter}
           onClearRating={clearRating}
+          view={view}
+          onViewChange={setView}
           foundCount={visibleAnime.length}
           totalCount={totalCount}
           hasFilters={hasFilters}
@@ -142,7 +171,7 @@ export function HomePage() {
         <EmptyState message="Список пуст. Добавьте первое аниме, чтобы начать калибровку оценок.">
           <Link
             to="/anime/new"
-            className="inline-flex min-h-11 items-center rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700"
+            className={`${BUTTON_PRIMARY_CLASSES} inline-flex items-center`}
           >
             + Добавить аниме
           </Link>
@@ -162,11 +191,18 @@ export function HomePage() {
         </EmptyState>
       )}
 
-      <div className="space-y-2">
+      <div
+        className={
+          view === 'list'
+            ? 'space-y-2'
+            : 'grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6'
+        }
+      >
         {visibleAnime.map((anime) => (
           <AnimeCard
             key={anime.id}
             anime={anime}
+            view={view}
             tags={anime.tagIds.flatMap((id) => {
               const tag = tagMap.get(id)
               return tag ? [tag] : []

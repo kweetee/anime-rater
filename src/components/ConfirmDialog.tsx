@@ -34,17 +34,17 @@ export function ConfirmDialog({
   return (
     // Клик по тёмному фону закрывает окно
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"
       onClick={onCancel}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-sm space-y-4 rounded-xl bg-white p-5 shadow-xl dark:bg-slate-900"
+        className="frame w-full max-w-sm space-y-4 bg-white p-5 [--fw:3px] dark:bg-slate-900"
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
           {title}
         </h2>
         <p className="text-sm text-slate-600 dark:text-slate-300">{message}</p>

@@ -1,8 +1,14 @@
 import { REFERENCE_BADGE_CLASSES } from '../lib/styles'
+import { StarIcon } from './Doodles'
 
-// Значок «Эталон». Один и тот же на всех экранах (стиль — в lib/styles.ts).
+// Плашка «Эталон». Одна и та же на всех экранах (стиль — в lib/styles.ts).
 export function ReferenceBadge() {
-  return <span className={REFERENCE_BADGE_CLASSES}>★ Эталон</span>
+  return (
+    <span className={REFERENCE_BADGE_CLASSES}>
+      <StarIcon className="h-2.5 w-2.5" />
+      Эталон
+    </span>
+  )
 }
 
 export default ReferenceBadge

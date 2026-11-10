@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { BackupFile, ImportMode } from '../db/backup'
-import { BUTTON_SECONDARY_CLASSES } from '../lib/formStyles'
+import { BUTTON_PRIMARY_CLASSES, BUTTON_SECONDARY_CLASSES } from '../lib/formStyles'
 
 interface ImportDialogProps {
   backup: BackupFile
@@ -24,25 +24,25 @@ export function ImportDialog({ backup, busy, onConfirm, onCancel }: ImportDialog
 
   const withImages = backup.anime.filter((item) => item.image).length
   const optionClass = (active: boolean) =>
-    `flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ${
+    `flex min-h-11 cursor-pointer items-start gap-3 border p-3 text-sm ${
       active
-        ? 'border-indigo-500 bg-indigo-50 dark:bg-slate-800'
+        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/50'
         : 'border-slate-300 dark:border-slate-700'
     }`
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4"
       onClick={busy ? undefined : onCancel}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Импорт данных"
-        className="max-h-full w-full max-w-md space-y-4 overflow-y-auto rounded-xl bg-white p-5 shadow-xl dark:bg-slate-900"
+        className="frame max-h-full w-full max-w-md space-y-4 overflow-y-auto bg-white p-5 [--fw:3px] dark:bg-slate-900"
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
           Импорт данных
         </h2>
         <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -83,7 +83,7 @@ export function ImportDialog({ backup, busy, onConfirm, onCancel }: ImportDialog
         </div>
 
         {mode === 'replace' && (
-          <p className="rounded-lg border border-red-500 p-2 text-sm text-red-700 dark:text-red-300">
+          <p className="border border-slate-900 dark:border-white p-2 text-sm text-slate-900 dark:text-slate-100">
             Внимание: это нельзя отменить. Если сомневаетесь, сначала сохраните текущие данные
             кнопкой «Скачать резервную копию».
           </p>
@@ -100,7 +100,7 @@ export function ImportDialog({ backup, busy, onConfirm, onCancel }: ImportDialog
           </button>
           <button
             type="button"
-            className="min-h-11 rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className={BUTTON_PRIMARY_CLASSES}
             disabled={busy}
             onClick={() => onConfirm(mode)}
           >

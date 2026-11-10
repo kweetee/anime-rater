@@ -4,6 +4,7 @@ import { db, DEFAULT_HINTS } from '../db/db'
 import type { Anime } from '../types'
 import { RatingBlock } from '../components/RatingBlock'
 import { Spinner } from '../components/Spinner'
+import { PageTitle } from '../components/PageTitle'
 
 const SCORES = Array.from({ length: 10 }, (_, i) => i + 1)
 
@@ -40,18 +41,15 @@ export default function CalibrationPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-          Калибровка
-        </h1>
+      <div className="space-y-2">
+        <PageTitle>Калибровка</PageTitle>
         <p className="text-sm text-slate-500 dark:text-slate-400">
-          Я оцениваю аниме целиком, по общему ощущению (вайбу). Описания можно
-          переписать под себя, они сохраняются сами.
+          Описания можно переписать, они сохраняются сами.
         </p>
       </div>
 
       {halfRefs > 0 && (
-        <p className="rounded-lg border border-yellow-500 p-2 text-sm text-slate-700 dark:text-slate-300">
+        <p className="border border-amber-500 bg-amber-50 p-3 text-sm text-slate-800 dark:bg-amber-950/40 dark:text-slate-200">
           Эталонов с дробной оценкой: {halfRefs}. Они не показаны в блоках,
           откройте их в форме и поставьте целую оценку.
         </p>
